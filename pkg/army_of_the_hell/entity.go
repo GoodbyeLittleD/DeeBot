@@ -682,6 +682,9 @@ var (
 【BOSS】
 效果：其他boss出价+50%，每回合给予所属玩家10能力点。`,
 	}
+	凑数的 = Entity{
+		Name: "",
+	}
 )
 
 func init() {

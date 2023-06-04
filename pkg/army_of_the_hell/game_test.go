@@ -65,36 +65,3 @@ func TestRandomPlay(t *testing.T) {
 		}
 	}
 }
-
-func TestGame(t *testing.T) {
-	game := New(2)
-	game.Start()
-	go func() {
-		if game.WaitResponsePlayerId != -1 {
-			fmt.Println("输入回应：")
-			fmt.Scanf("%s\n", &game.Response)
-			game.GiveResponse(game.WaitResponsePlayerId, game.Response)
-		}
-	}()
-
-	for {
-		scores := game.GetScores()
-		if scores != nil {
-			fmt.Println(scores)
-			break
-		}
-
-		var bidValue int
-		fmt.Print("输入玩家1的出价：")
-		fmt.Scanf("%d\n", &bidValue)
-		if err := game.GivePrice(0, bidValue); err != nil {
-			fmt.Println(err)
-		}
-
-		fmt.Print("输入玩家2的出价：")
-		fmt.Scanf("%d\n", &bidValue)
-		if err := game.GivePrice(1, bidValue); err != nil {
-			fmt.Println(err)
-		}
-	}
-}

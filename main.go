@@ -109,6 +109,9 @@ func main() {
 		if slices.Contains(currentPlayerIds, ctx.Event.UserID) {
 			return
 		}
+		if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
+			return
+		}
 		currentWatchingPlayerIds = append(currentWatchingPlayerIds, ctx.Event.UserID)
 	})
 	zero.OnCommand("退出").
@@ -123,8 +126,8 @@ func main() {
 						currentGroupId = 0
 						return
 					}
-					currentPlayerIds = append(currentPlayerIds[:index], currentPlayerIds[index+1:]...)
-					currentPlayerNames = append(currentPlayerNames[:index], currentPlayerNames[index+1:]...)
+					// currentPlayerIds = append(currentPlayerIds[:index], currentPlayerIds[index+1:]...)
+					// currentPlayerNames = append(currentPlayerNames[:index], currentPlayerNames[index+1:]...)
 				}
 				if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
 					index := slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)
@@ -155,6 +158,9 @@ func main() {
 				return
 			}
 			if currentGroupId != ctx.Event.GroupID {
+				return
+			}
+			if !slices.Contains(currentPlayerIds, ctx.Event.UserID) {
 				return
 			}
 			gameStarted = true
@@ -267,12 +273,13 @@ func main() {
 				}
 			} else {
 				if !game.CurrentPlayerReady[id] {
-					price, err := strconv.Atoi(ctx.Event.RawMessage)
+					var price1, price2 int
+					_, err := fmt.Sscanf(ctx.Event.RawMessage, "%d %d", &price1, &price2)
 					if err != nil {
-						fmt.Println("waiting for number, got ", ctx.Event.RawMessage)
+						fmt.Println("waiting for 2 number, got ", ctx.Event.RawMessage)
 						return
 					}
-					if err := game.GivePrice(id, price); err != nil {
+					if err := game.GivePrices(id, price1, price2); err != nil {
 						ctx.Send(err.Error())
 					}
 				}
@@ -283,6 +290,8 @@ func main() {
 				currentGroupId = 0
 			}
 		})
+
+	// army_of_the_hell.PlayConsole()
 
 	zero.RunAndBlock(&zero.Config{
 		NickName:      []string{"bot"},
