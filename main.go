@@ -101,12 +101,9 @@ func main() {
 			if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
 				currentWatchingPlayerIds = append(currentWatchingPlayerIds[:slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)], currentWatchingPlayerIds[slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)+1:]...)
 			}
-			go ctx.SendChain(message.At(ctx.Event.UserID), message.Text("地狱大军即将出动！"))
 			if sendGroupMsg {
 				// groupmsghelper.SendText("地狱大军即将出动！")
-				go ctx.SendGroupMessage(ctx.Event.GroupID, message.Message{
-					message.Text("地狱大军即将出动！"),
-				})
+				go ctx.SendChain(message.At(ctx.Event.UserID), message.Text("地狱大军即将出动！"))
 			}
 			if sendPrivateMsg {
 				go ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
