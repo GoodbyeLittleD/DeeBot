@@ -590,12 +590,20 @@ var (
 	暴躁外皮 = Entity{
 		Name:           "暴躁外皮",
 		Tags:           []string{"all", "act5"},
-		EndTurnCredits: 3,
+		EndTurnCredits: 2,
 		UnlockEntities: []*Entity{&尼拉塞克},
 		Desc: `
-效果：每回合额外给予所属玩家2能力点
+效果：每回合给予所属玩家2能力点
+特殊：下回合结束时，将一个暴躁外皮洗入牌库
 解锁：尼拉塞克`,
-		/* TODO:   不在玩家手中也生效   特殊：拍得后洗回牌库，但是下一回合不会被抽出*/
+	}
+	暴躁外皮2 = Entity{
+		Name:           "暴躁外皮",
+		Tags:           []string{"all", "act5"},
+		EndTurnCredits: 2,
+		Desc: `
+效果：每回合给予所属玩家2能力点
+特殊：下回合结束时，将一个暴躁外皮洗入牌库`,
 	}
 	尼拉塞克 = Entity{
 		Name:           "尼拉塞克",

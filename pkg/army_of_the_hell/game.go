@@ -38,6 +38,7 @@ type Game struct {
 	牙皮_triggered        bool
 	火之眼_countdown       int8
 	召唤者_countdown       int8
+	暴躁外皮_countdown      int8
 	古代无魂之卡_countdown    int8
 	西希之王_playerid       int8
 	优先抽取议会成员_triggered  bool
@@ -265,6 +266,13 @@ func (game *Game) PlayerLeave(playerId int) bool {
 
 func (game *Game) startNewTurn() {
 	game.Turn++
+
+	// 暴躁外皮：被拍得后的第2回合洗入牌库
+	game.暴躁外皮_countdown--
+	if game.暴躁外皮_countdown == 0 {
+		game.CurrentEntityPool = append(game.CurrentEntityPool, &暴躁外皮2)
+	}
+
 	var poolString string
 	for _, entity := range game.CurrentEntityPool {
 		poolString += entity.Name + "\n"
@@ -752,7 +760,7 @@ func (game *Game) endTurn() {
 	if winner2 != -1 {
 		game.PlayerCredits[winner2] -= int(float64(game.CurrentPlayerBid2[winner2]) * game.getCurrentPriceDiscount2(winner2))
 	}
-	if winner != -1 {
+	if winner != -1 || game.Turn == 1 { // 尸体发火流拍也正常解锁后续
 		game.PlayerEntities[winner] = append(game.PlayerEntities[winner], game.CurrentBiddingEntity)
 		game.CurrentEntityPool = append(game.CurrentEntityPool[:game.CurrentBiddingEntityIndex], game.CurrentEntityPool[game.CurrentBiddingEntityIndex+1:]...)
 		for _, entity := range game.CurrentBiddingEntity.UnlockEntities {
@@ -956,6 +964,14 @@ func (game *Game) endTurn() {
 	}
 	if winner2 != -1 && game.CurrentBiddingEntity2.Name == "督军山克" {
 		game.督军山克_countdown = 3
+	}
+
+	// 暴躁外皮
+	if winner != -1 && game.CurrentBiddingEntity.Name == "暴躁外皮" {
+		game.暴躁外皮_countdown = 2
+	}
+	if winner2 != -1 && game.CurrentBiddingEntity2.Name == "暴躁外皮" {
+		game.暴躁外皮_countdown = 2
 	}
 
 	// 破坏者卡兰索, 诅咒的阿克姆, 血腥的巴特克, 不洁的凡塔, 古难记录者
