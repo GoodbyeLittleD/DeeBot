@@ -158,7 +158,10 @@ func (game *Game) GivePrice(playerId int, price int) error {
 	fmt.Println(game.CurrentPlayerReady)
 
 	all_player_ready := true
-	for _, ready := range game.CurrentPlayerReady {
+	for id, ready := range game.CurrentPlayerReady {
+		if game.PlayerLeaved[id] {
+			continue
+		}
 		if !ready {
 			all_player_ready = false
 		}
@@ -190,7 +193,10 @@ func (game *Game) GivePrices(playerId int, price1 int, price2 int) error {
 	game.CurrentPlayerReady[playerId] = true
 
 	all_player_ready := true
-	for _, ready := range game.CurrentPlayerReady {
+	for id, ready := range game.CurrentPlayerReady {
+		if game.PlayerLeaved[id] {
+			continue
+		}
 		if !ready {
 			all_player_ready = false
 		}
@@ -292,12 +298,10 @@ func (game *Game) startNewTurn() {
 		}
 
 		// 督军山克：接下来第三次有效抽牌抽到矫正者怪异，已经抽到则失效。
-	} else if game.督军山克_countdown == 0 {
-		if slices.Contains(game.CurrentEntityPool, &矫正者怪异) {
-			game.PrintFunc("督军山克效果已触发。")
-			game.CurrentBiddingEntityIndex = slices.Index(game.CurrentEntityPool, &矫正者怪异)
-			game.CurrentBiddingEntity = &矫正者怪异
-		}
+	} else if game.督军山克_countdown == 0 && slices.Contains(game.CurrentEntityPool, &矫正者怪异) {
+		game.PrintFunc("督军山克效果已触发。")
+		game.CurrentBiddingEntityIndex = slices.Index(game.CurrentEntityPool, &矫正者怪异)
+		game.CurrentBiddingEntity = &矫正者怪异
 
 		// 议会成员：优先抽取
 	} else if game.优先抽取议会成员_triggered {
@@ -389,68 +393,67 @@ func (game *Game) startNewTurn() {
 		game.startNewTurn()
 		return
 
-	} else {
-		// 海法斯特盔甲制作者：第一次被抽到时，改为抽到ACT5-达克法恩
-		if !game.海法斯特盔甲制作者_triggered && game.CurrentBiddingEntity.Name == "海法斯特盔甲制作者" {
-			game.海法斯特盔甲制作者_triggered = true
-			game.CurrentEntityPool = append(game.CurrentEntityPool, &达克法恩)
-			game.CurrentBiddingEntity = &达克法恩
-			game.CurrentBiddingEntityIndex = len(game.CurrentEntityPool) - 1
-			game.PrintFunc("【海法斯特盔甲制作者】效果触发，本回合拍卖的角色改为【ACT5-达克法恩】。")
-		}
+	}
+	// 海法斯特盔甲制作者：第一次被抽到时，改为抽到ACT5-达克法恩
+	if !game.海法斯特盔甲制作者_triggered && game.CurrentBiddingEntity.Name == "海法斯特盔甲制作者" {
+		game.海法斯特盔甲制作者_triggered = true
+		game.CurrentEntityPool = append(game.CurrentEntityPool, &达克法恩)
+		game.CurrentBiddingEntity = &达克法恩
+		game.CurrentBiddingEntityIndex = len(game.CurrentEntityPool) - 1
+		game.PrintFunc("【海法斯特盔甲制作者】效果触发，本回合拍卖的角色改为【ACT5-达克法恩】。")
+	}
 
-		// 黑暗长老：抽到后三回合【天黑】；牙皮：永久取消【天黑】
-		if game.CurrentBiddingEntity.Name == "牙皮" {
-			game.牙皮_triggered = true
-		}
-		if game.CurrentBiddingEntity.Name == "黑暗长老" {
-			game.黑暗长老_天黑_countdown = 3
-		}
+	// 黑暗长老：抽到后三回合【天黑】；牙皮：永久取消【天黑】
+	if game.CurrentBiddingEntity.Name == "牙皮" {
+		game.牙皮_triggered = true
+	}
+	if game.CurrentBiddingEntity.Name == "黑暗长老" {
+		game.黑暗长老_天黑_countdown = 3
+	}
 
-		// 格瑞斯华尔德：只有拉卡尼休和树头木拳的拥有者可以竞拍
-		if game.CurrentBiddingEntity.Name == "格瑞斯华尔德" {
+	// 格瑞斯华尔德：只有拉卡尼休和树头木拳的拥有者可以竞拍
+	if game.CurrentBiddingEntity.Name == "格瑞斯华尔德" {
+		for i := 0; i < game.PlayerNum; i++ {
+			if slices.Contains(game.PlayerEntities[i], &拉卡尼休) && slices.Contains(game.PlayerEntities[i], &树头木拳) {
+				game.格瑞斯华尔德_playerid = int8(i)
+			}
+		}
+	}
+
+	// 沙漠三小队：【钻地的冰虫】、【牙皮】、【疯狂血腥女巫】在一家，则只有他可以竞拍【火之眼】、【督瑞尔】
+	game.沙漠三小队_playerid = -1
+	if game.CurrentBiddingEntity.Name == "火之眼" || game.CurrentBiddingEntity.Name == "督瑞尔" {
+		for i := 0; i < game.PlayerNum; i++ {
+			if slices.Contains(game.PlayerEntities[i], &疯狂血腥女巫) && slices.Contains(game.PlayerEntities[i], &钻地的冰虫) && slices.Contains(game.PlayerEntities[i], &牙皮) {
+				game.沙漠三小队_playerid = i
+				break
+			}
+		}
+	}
+
+	// 火之眼：如果两回合内抽到【召唤者】，只有拍得火之眼者可以竞拍【召唤者】
+	if game.火之眼_countdown > 0 {
+		if game.SingleMode {
+			game.火之眼_countdown--
+		}
+		if game.CurrentBiddingEntity.Name == "召唤者" {
 			for i := 0; i < game.PlayerNum; i++ {
-				if slices.Contains(game.PlayerEntities[i], &拉卡尼休) && slices.Contains(game.PlayerEntities[i], &树头木拳) {
-					game.格瑞斯华尔德_playerid = int8(i)
+				if slices.Contains(game.PlayerEntities[i], &火之眼) {
+					game.火之眼_playerid = i
 				}
 			}
 		}
+	}
 
-		// 沙漠三小队：【钻地的冰虫】、【牙皮】、【疯狂血腥女巫】在一家，则只有他可以竞拍【火之眼】、【督瑞尔】
-		game.沙漠三小队_playerid = -1
-		if game.CurrentBiddingEntity.Name == "火之眼" || game.CurrentBiddingEntity.Name == "督瑞尔" {
+	// 召唤者：如果两回合内抽到【督瑞尔】，只有拍得者可以竞拍【督瑞尔】
+	if game.召唤者_countdown > 0 {
+		if game.SingleMode {
+			game.召唤者_countdown--
+		}
+		if game.CurrentBiddingEntity.Name == "督瑞尔" {
 			for i := 0; i < game.PlayerNum; i++ {
-				if slices.Contains(game.PlayerEntities[i], &疯狂血腥女巫) && slices.Contains(game.PlayerEntities[i], &钻地的冰虫) && slices.Contains(game.PlayerEntities[i], &牙皮) {
-					game.沙漠三小队_playerid = i
-					break
-				}
-			}
-		}
-
-		// 火之眼：如果两回合内抽到【召唤者】，只有拍得火之眼者可以竞拍【召唤者】
-		if game.火之眼_countdown > 0 {
-			if game.SingleMode {
-				game.火之眼_countdown--
-			}
-			if game.CurrentBiddingEntity.Name == "召唤者" {
-				for i := 0; i < game.PlayerNum; i++ {
-					if slices.Contains(game.PlayerEntities[i], &火之眼) {
-						game.火之眼_playerid = i
-					}
-				}
-			}
-		}
-
-		// 召唤者：如果两回合内抽到【督瑞尔】，只有拍得者可以竞拍【督瑞尔】
-		if game.召唤者_countdown > 0 {
-			if game.SingleMode {
-				game.召唤者_countdown--
-			}
-			if game.CurrentBiddingEntity.Name == "督瑞尔" {
-				for i := 0; i < game.PlayerNum; i++ {
-					if slices.Contains(game.PlayerEntities[i], &召唤者) {
-						game.督瑞尔_playerid = i
-					}
+				if slices.Contains(game.PlayerEntities[i], &召唤者) {
+					game.督瑞尔_playerid = i
 				}
 			}
 		}
@@ -491,12 +494,10 @@ func (game *Game) startNewTurn() {
 			}
 
 			// 督军山克：接下来第三次有效抽牌抽到矫正者怪异，已经抽到则失效。
-		} else if game.督军山克_countdown == 0 {
-			if slices.Contains(game.CurrentEntityPool, &矫正者怪异) {
-				game.PrintFunc("督军山克效果已触发。")
-				game.CurrentBiddingEntityIndex2 = slices.Index(game.CurrentEntityPool, &矫正者怪异)
-				game.CurrentBiddingEntity2 = &矫正者怪异
-			}
+		} else if game.督军山克_countdown == 0 && slices.Contains(game.CurrentEntityPool, &矫正者怪异) && game.CurrentBiddingEntity.Name != "矫正者怪异" {
+			game.PrintFunc("督军山克效果已触发。")
+			game.CurrentBiddingEntityIndex2 = slices.Index(game.CurrentEntityPool, &矫正者怪异)
+			game.CurrentBiddingEntity2 = &矫正者怪异
 
 			// 议会成员：优先抽取
 		} else if game.优先抽取议会成员_triggered {
@@ -588,64 +589,64 @@ func (game *Game) startNewTurn() {
 			game.startNewTurn()
 			return
 
-		} else {
-			// 海法斯特盔甲制作者：第一次被抽到时，改为抽到ACT5-达克法恩
-			if !game.海法斯特盔甲制作者_triggered && game.CurrentBiddingEntity2.Name == "海法斯特盔甲制作者" {
-				game.海法斯特盔甲制作者_triggered = true
-				game.CurrentEntityPool = append(game.CurrentEntityPool, &达克法恩)
-				game.CurrentBiddingEntity2 = &达克法恩
-				game.CurrentBiddingEntityIndex2 = len(game.CurrentEntityPool) - 1
-				game.PrintFunc("【海法斯特盔甲制作者】效果触发，本回合拍卖的角色改为【ACT5-达克法恩】。")
-			}
+		}
 
-			// 黑暗长老：抽到后三回合【天黑】；牙皮：永久取消【天黑】
-			if game.CurrentBiddingEntity2.Name == "牙皮" {
-				game.牙皮_triggered = true
-			}
-			if game.CurrentBiddingEntity2.Name == "黑暗长老" {
-				game.黑暗长老_天黑_countdown = 3
-			}
+		// 海法斯特盔甲制作者：第一次被抽到时，改为抽到ACT5-达克法恩
+		if !game.海法斯特盔甲制作者_triggered && game.CurrentBiddingEntity2.Name == "海法斯特盔甲制作者" {
+			game.海法斯特盔甲制作者_triggered = true
+			game.CurrentEntityPool = append(game.CurrentEntityPool, &达克法恩)
+			game.CurrentBiddingEntity2 = &达克法恩
+			game.CurrentBiddingEntityIndex2 = len(game.CurrentEntityPool) - 1
+			game.PrintFunc("【海法斯特盔甲制作者】效果触发，本回合拍卖的角色改为【ACT5-达克法恩】。")
+		}
 
-			// 格瑞斯华尔德：只有拉卡尼休和树头木拳的拥有者可以竞拍
-			if game.CurrentBiddingEntity2.Name == "格瑞斯华尔德" {
+		// 黑暗长老：抽到后三回合【天黑】；牙皮：永久取消【天黑】
+		if game.CurrentBiddingEntity2.Name == "牙皮" {
+			game.牙皮_triggered = true
+		}
+		if game.CurrentBiddingEntity2.Name == "黑暗长老" {
+			game.黑暗长老_天黑_countdown = 3
+		}
+
+		// 格瑞斯华尔德：只有拉卡尼休和树头木拳的拥有者可以竞拍
+		if game.CurrentBiddingEntity2.Name == "格瑞斯华尔德" {
+			for i := 0; i < game.PlayerNum; i++ {
+				if slices.Contains(game.PlayerEntities[i], &拉卡尼休) && slices.Contains(game.PlayerEntities[i], &树头木拳) {
+					game.格瑞斯华尔德_playerid = int8(i)
+				}
+			}
+		}
+
+		// 沙漠三小队：【钻地的冰虫】、【牙皮】、【疯狂血腥女巫】在一家，则只有他可以竞拍【火之眼】、【督瑞尔】
+		game.沙漠三小队_playerid = -1
+		if game.CurrentBiddingEntity2.Name == "火之眼" || game.CurrentBiddingEntity2.Name == "督瑞尔" {
+			for i := 0; i < game.PlayerNum; i++ {
+				if slices.Contains(game.PlayerEntities[i], &疯狂血腥女巫) && slices.Contains(game.PlayerEntities[i], &钻地的冰虫) && slices.Contains(game.PlayerEntities[i], &牙皮) {
+					game.沙漠三小队_playerid = i
+					break
+				}
+			}
+		}
+
+		// 火之眼：如果两回合内抽到【召唤者】，只有拍得火之眼者可以竞拍【召唤者】
+		if game.火之眼_countdown > 0 {
+			game.火之眼_countdown--
+			if game.CurrentBiddingEntity2.Name == "召唤者" {
 				for i := 0; i < game.PlayerNum; i++ {
-					if slices.Contains(game.PlayerEntities[i], &拉卡尼休) && slices.Contains(game.PlayerEntities[i], &树头木拳) {
-						game.格瑞斯华尔德_playerid = int8(i)
+					if slices.Contains(game.PlayerEntities[i], &火之眼) {
+						game.火之眼_playerid = i
 					}
 				}
 			}
+		}
 
-			// 沙漠三小队：【钻地的冰虫】、【牙皮】、【疯狂血腥女巫】在一家，则只有他可以竞拍【火之眼】、【督瑞尔】
-			game.沙漠三小队_playerid = -1
-			if game.CurrentBiddingEntity2.Name == "火之眼" || game.CurrentBiddingEntity2.Name == "督瑞尔" {
+		// 召唤者：如果两回合内抽到【督瑞尔】，只有拍得者可以竞拍【督瑞尔】
+		if game.召唤者_countdown > 0 {
+			game.召唤者_countdown--
+			if game.CurrentBiddingEntity2.Name == "督瑞尔" {
 				for i := 0; i < game.PlayerNum; i++ {
-					if slices.Contains(game.PlayerEntities[i], &疯狂血腥女巫) && slices.Contains(game.PlayerEntities[i], &钻地的冰虫) && slices.Contains(game.PlayerEntities[i], &牙皮) {
-						game.沙漠三小队_playerid = i
-						break
-					}
-				}
-			}
-
-			// 火之眼：如果两回合内抽到【召唤者】，只有拍得火之眼者可以竞拍【召唤者】
-			if game.火之眼_countdown > 0 {
-				game.火之眼_countdown--
-				if game.CurrentBiddingEntity2.Name == "召唤者" {
-					for i := 0; i < game.PlayerNum; i++ {
-						if slices.Contains(game.PlayerEntities[i], &火之眼) {
-							game.火之眼_playerid = i
-						}
-					}
-				}
-			}
-
-			// 召唤者：如果两回合内抽到【督瑞尔】，只有拍得者可以竞拍【督瑞尔】
-			if game.召唤者_countdown > 0 {
-				game.召唤者_countdown--
-				if game.CurrentBiddingEntity2.Name == "督瑞尔" {
-					for i := 0; i < game.PlayerNum; i++ {
-						if slices.Contains(game.PlayerEntities[i], &召唤者) {
-							game.督瑞尔_playerid = i
-						}
+					if slices.Contains(game.PlayerEntities[i], &召唤者) {
+						game.督瑞尔_playerid = i
 					}
 				}
 			}
@@ -1209,6 +1210,15 @@ func (game *Game) checkPricesValid(playerId int, price1 int, price2 int) error {
 	}
 	if maxBidValue := game.getMaxBidValue2(playerId); price2 > maxBidValue {
 		return fmt.Errorf("对 %s 的出价超过最大值 %d", game.CurrentBiddingEntity2.Name, maxBidValue)
+	}
+	if game.衣卒尔_playerid == int8(playerId) &&
+		len(game.衣卒尔_player_history) == 4 &&
+		!game.衣卒尔_player_history[0] &&
+		!game.衣卒尔_player_history[1] &&
+		!game.衣卒尔_player_history[2] &&
+		!game.衣卒尔_player_history[3] &&
+		price1 > 0 && price2 > 0 {
+		return fmt.Errorf("由于衣卒尔效果限制，至少得为一个单位出价0点")
 	}
 	if game.CurrentBiddingEntity.BidChecker != nil {
 		if err := game.CurrentBiddingEntity.BidChecker(game.PlayerEntities[playerId], price1); err != nil {

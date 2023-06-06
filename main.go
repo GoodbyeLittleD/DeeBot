@@ -20,6 +20,9 @@ var groupWhiteList = []int64{
 	757553235, // 一费奶五战队
 }
 
+var sendGroupMsg = false
+var sendPrivateMsg = true
+
 func main() {
 	var currentGroupId int64
 	var currentPlayerIds []int64
@@ -34,7 +37,7 @@ func main() {
 	go func() {
 		for {
 			groupTicket <- struct{}{}
-			time.Sleep(5000 * time.Millisecond)
+			time.Sleep(3000 * time.Millisecond)
 		}
 	}()
 	var privateTicket = make(chan struct{})
@@ -64,11 +67,17 @@ func main() {
 				}
 				return
 			}
-			ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
-				message.Text("地狱大军即将出动！"),
-			})
-			// ctx.SendChain(message.At(ctx.Event.UserID), message.Text("地狱大军即将出动！\n其他玩家可输入 #加入 加入游戏，输入 #围观 接收游戏消息，输入 #退出 可退出游戏。"))
-			// groupmsghelper.SendText("地狱大军即将出动！\n其他玩家可输入：\n #加入  加入游戏\n #退出  退出游戏")
+			if sendPrivateMsg {
+				go ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
+					message.Text("地狱大军即将出动！"),
+				})
+			}
+			if sendGroupMsg {
+				go ctx.SendChain(message.At(ctx.Event.UserID), message.Text(
+					"地狱大军即将出动！\n其他玩家可输入 #加入 #退出 参与游戏。"),
+				)
+				// groupmsghelper.SendText("地狱大军即将出动！\n其他玩家可输入：\n #加入  加入游戏\n #退出  退出游戏")
+			}
 			currentGroupId = ctx.Event.GroupID
 			currentPlayerIds = []int64{ctx.Event.UserID}
 			currentPlayerNames = []string{ctx.Event.Sender.Name()}
@@ -89,11 +98,21 @@ func main() {
 			if slices.Contains(currentPlayerIds, ctx.Event.UserID) {
 				return
 			}
-			// ctx.SendChain(message.At(ctx.Event.UserID), message.Text("地狱大军即将出动！"))
-			// groupmsghelper.SendText("地狱大军即将出动！")
-			ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
-				message.Text("地狱大军即将出动！"),
-			})
+			if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
+				currentWatchingPlayerIds = append(currentWatchingPlayerIds[:slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)], currentWatchingPlayerIds[slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)+1:]...)
+			}
+			go ctx.SendChain(message.At(ctx.Event.UserID), message.Text("地狱大军即将出动！"))
+			if sendGroupMsg {
+				// groupmsghelper.SendText("地狱大军即将出动！")
+				go ctx.SendGroupMessage(ctx.Event.GroupID, message.Message{
+					message.Text("地狱大军即将出动！"),
+				})
+			}
+			if sendPrivateMsg {
+				go ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
+					message.Text("地狱大军即将出动！"),
+				})
+			}
 			currentPlayerIds = append(currentPlayerIds, ctx.Event.UserID)
 			currentPlayerNames = append(currentPlayerNames, ctx.Event.Sender.Name())
 		})
@@ -118,6 +137,11 @@ func main() {
 		Handle(func(ctx *zero.Ctx) {
 			gameLock.Lock()
 			defer gameLock.Unlock()
+			if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
+				index := slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)
+				currentWatchingPlayerIds = append(currentWatchingPlayerIds[:index], currentWatchingPlayerIds[index+1:]...)
+				return
+			}
 			if gameStarted {
 				if slices.Contains(currentPlayerIds, ctx.Event.UserID) {
 					index := slices.Index(currentPlayerIds, ctx.Event.UserID)
@@ -126,13 +150,6 @@ func main() {
 						currentGroupId = 0
 						return
 					}
-					// currentPlayerIds = append(currentPlayerIds[:index], currentPlayerIds[index+1:]...)
-					// currentPlayerNames = append(currentPlayerNames[:index], currentPlayerNames[index+1:]...)
-				}
-				if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
-					index := slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)
-					currentWatchingPlayerIds = append(currentWatchingPlayerIds[:index], currentWatchingPlayerIds[index+1:]...)
-					return
 				}
 				return
 			}
@@ -140,10 +157,15 @@ func main() {
 				index := slices.Index(currentPlayerIds, ctx.Event.UserID)
 				currentPlayerIds = append(currentPlayerIds[:index], currentPlayerIds[index+1:]...)
 				currentPlayerNames = append(currentPlayerNames[:index], currentPlayerNames[index+1:]...)
-				// groupmsghelper.SendText("已退出地狱大军！")
-				ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
-					message.Text("已退出地狱大军！"),
-				})
+				if sendGroupMsg {
+					// groupmsghelper.SendText("已退出地狱大军！")
+					go ctx.SendChain(message.At(ctx.Event.UserID), message.Text("已退出地狱大军！"))
+				}
+				if sendPrivateMsg {
+					go ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
+						message.Text("已退出地狱大军！"),
+					})
+				}
 				if len(currentPlayerIds) == 0 {
 					gameStarted = false
 					currentGroupId = 0
@@ -173,23 +195,27 @@ func main() {
 				}
 				groupMsgQueue <- msg
 				privateMsgQueue <- msg
-				go func() {
-					<-groupTicket
-					// ctx.Send(<-groupMsgQueue)
-					// groupmsghelper.SendText(<-groupMsgQueue)
-				}()
-				go func() {
-					<-privateTicket
-					msg := <-privateMsgQueue
-					for _, id := range currentPlayerIds {
-						ctx.SendPrivateMessage(id, msg)
-						time.Sleep(300 * time.Millisecond)
-					}
-					for _, id := range currentWatchingPlayerIds {
-						ctx.SendPrivateMessage(id, msg)
-						time.Sleep(300 * time.Millisecond)
-					}
-				}()
+				if sendGroupMsg {
+					go func() {
+						<-groupTicket
+						ctx.Send(<-groupMsgQueue)
+						// groupmsghelper.SendText(<-groupMsgQueue)
+					}()
+				}
+				if sendPrivateMsg {
+					go func() {
+						<-privateTicket
+						msg := <-privateMsgQueue
+						for _, id := range currentPlayerIds {
+							ctx.SendPrivateMessage(id, msg)
+							time.Sleep(300 * time.Millisecond)
+						}
+						for _, id := range currentWatchingPlayerIds {
+							ctx.SendPrivateMessage(id, msg)
+							time.Sleep(300 * time.Millisecond)
+						}
+					}()
+				}
 			}
 			for index, name := range currentPlayerNames {
 				game.SetName(index, name)
