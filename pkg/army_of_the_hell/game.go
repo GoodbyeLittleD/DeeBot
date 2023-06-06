@@ -468,7 +468,9 @@ func (game *Game) startNewTurn() {
 	}
 
 	if game.黑暗长老_天黑_countdown > 0 && !game.牙皮_triggered && game.CurrentBiddingEntity.Name != "黑暗长老" {
-		game.黑暗长老_天黑_countdown--
+		if game.SingleMode {
+			game.黑暗长老_天黑_countdown--
+		}
 		game.PrintFunc("由于黑暗长老效果，天黑了，本回合拍卖的角色未知。")
 	} else {
 		bidRanges := ""

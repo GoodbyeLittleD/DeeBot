@@ -1,6 +1,7 @@
 package main
 
 import (
+	arena60 "dvabot/pkg/arena_6_0"
 	"dvabot/pkg/army_of_the_hell"
 	"fmt"
 	"strconv"
@@ -20,10 +21,13 @@ var groupWhiteList = []int64{
 	757553235, // 一费奶五战队
 }
 
+var sendGroupWelcome = true
 var sendGroupMsg = false
 var sendPrivateMsg = true
 
 func main() {
+	arena60.Handle()
+
 	var currentGroupId int64
 	var currentPlayerIds []int64
 	var currentWatchingPlayerIds []int64
@@ -72,7 +76,7 @@ func main() {
 					message.Text("地狱大军即将出动！"),
 				})
 			}
-			if sendGroupMsg {
+			if sendGroupWelcome {
 				go ctx.SendChain(message.At(ctx.Event.UserID), message.Text(
 					"地狱大军即将出动！\n其他玩家可输入 #加入 #退出 参与游戏。"),
 				)
@@ -101,7 +105,7 @@ func main() {
 			if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
 				currentWatchingPlayerIds = append(currentWatchingPlayerIds[:slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)], currentWatchingPlayerIds[slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)+1:]...)
 			}
-			if sendGroupMsg {
+			if sendGroupWelcome {
 				// groupmsghelper.SendText("地狱大军即将出动！")
 				go ctx.SendChain(message.At(ctx.Event.UserID), message.Text("地狱大军即将出动！"))
 			}
@@ -154,7 +158,7 @@ func main() {
 				index := slices.Index(currentPlayerIds, ctx.Event.UserID)
 				currentPlayerIds = append(currentPlayerIds[:index], currentPlayerIds[index+1:]...)
 				currentPlayerNames = append(currentPlayerNames[:index], currentPlayerNames[index+1:]...)
-				if sendGroupMsg {
+				if sendGroupWelcome {
 					// groupmsghelper.SendText("已退出地狱大军！")
 					go ctx.SendChain(message.At(ctx.Event.UserID), message.Text("已退出地狱大军！"))
 				}
