@@ -1,7 +1,6 @@
 package main
 
 import (
-	arena60 "dvabot/pkg/arena_6_0"
 	"dvabot/pkg/army_of_the_hell"
 	"fmt"
 	"strconv"
@@ -26,7 +25,7 @@ var sendGroupMsg = false
 var sendPrivateMsg = true
 
 func main() {
-	arena60.Handle()
+	// arena60.Handle()
 
 	var currentGroupId int64
 	var currentPlayerIds []int64

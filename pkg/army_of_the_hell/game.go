@@ -763,8 +763,10 @@ func (game *Game) endTurn() {
 		game.PlayerCredits[winner2] -= int(float64(game.CurrentPlayerBid2[winner2]) * game.getCurrentPriceDiscount2(winner2))
 	}
 	if winner != -1 || game.Turn == 1 { // 尸体发火流拍也正常解锁后续
-		game.PlayerEntities[winner] = append(game.PlayerEntities[winner], game.CurrentBiddingEntity)
-		game.CurrentEntityPool = append(game.CurrentEntityPool[:game.CurrentBiddingEntityIndex], game.CurrentEntityPool[game.CurrentBiddingEntityIndex+1:]...)
+		if winner != -1 {
+			game.PlayerEntities[winner] = append(game.PlayerEntities[winner], game.CurrentBiddingEntity)
+			game.CurrentEntityPool = append(game.CurrentEntityPool[:game.CurrentBiddingEntityIndex], game.CurrentEntityPool[game.CurrentBiddingEntityIndex+1:]...)
+		}
 		for _, entity := range game.CurrentBiddingEntity.UnlockEntities {
 			if entity.UnlockChecker != nil {
 				if !entity.UnlockChecker(game) {
