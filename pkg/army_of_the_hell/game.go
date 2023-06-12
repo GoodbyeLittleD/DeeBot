@@ -53,9 +53,11 @@ type Game struct {
 	达克法恩_triggered      bool
 	火之眼_unlocked        bool
 	墨菲斯托_unlocked       bool
+	三个野蛮人试炼_unlocked    bool
 	三个野蛮人试炼_passed      []bool
 	破坏者卡兰索_unlocked     bool
 	格瑞斯华尔德_playerid     int8
+	尼拉塞克_playerid       int8
 	沙漠三小队_playerid      int
 	火之眼_playerid        int
 	督瑞尔_playerid        int
@@ -95,6 +97,7 @@ func New(number_players int) *Game {
 	game.督瑞尔_playerid = -1
 	game.格瑞斯华尔德_playerid = -1
 	game.沙漠三小队_playerid = -1
+	game.尼拉塞克_playerid = -1
 
 	game.SingleMode = true
 	// game.DoubleMode = true
@@ -596,7 +599,12 @@ func (game *Game) startNewTurn() {
 			// 三个野蛮人试炼：当被抽到时，改为开启试炼
 		} else if game.CurrentBiddingEntity2.Name == "三个野蛮人" {
 			game.PrintFunc("【三个野蛮人】试炼已开启。玩家可以随时输入【接受试炼】，支付50能力点通过三个野蛮人的试炼。一方通过试炼后解锁【破坏者卡兰索】。")
+			game.三个野蛮人试炼_unlocked = true
 			game.CurrentEntityPool = append(game.CurrentEntityPool[:game.CurrentBiddingEntityIndex2], game.CurrentEntityPool[game.CurrentBiddingEntityIndex2+1:]...)
+			if game.尼拉塞克_playerid != -1 {
+				game.破坏者卡兰索_unlocked = true
+				game.CurrentEntityPool = append(game.CurrentEntityPool, &破坏者卡兰索)
+			}
 			game.handleEndTurnCredits()
 			game.startNewTurn()
 			return
@@ -1016,17 +1024,19 @@ func (game *Game) endTurn() {
 	// 尼拉塞克：直接通过三个野蛮人试炼
 	if game.CurrentBiddingEntity.Name == "尼拉塞克" && winner != -1 {
 		game.三个野蛮人试炼_passed[winner] = true
-		if !game.破坏者卡兰索_unlocked {
+		if game.三个野蛮人试炼_unlocked && !game.破坏者卡兰索_unlocked {
 			game.破坏者卡兰索_unlocked = true
 			game.CurrentEntityPool = append(game.CurrentEntityPool, &破坏者卡兰索)
 		}
+		game.尼拉塞克_playerid = int8(winner)
 	}
 	if winner2 != -1 && game.CurrentBiddingEntity2.Name == "尼拉塞克" {
 		game.三个野蛮人试炼_passed[winner2] = true
-		if !game.破坏者卡兰索_unlocked {
+		if game.三个野蛮人试炼_unlocked && !game.破坏者卡兰索_unlocked {
 			game.破坏者卡兰索_unlocked = true
 			game.CurrentEntityPool = append(game.CurrentEntityPool, &破坏者卡兰索)
 		}
+		game.尼拉塞克_playerid = int8(winner2)
 	}
 
 	// 双拍模式
