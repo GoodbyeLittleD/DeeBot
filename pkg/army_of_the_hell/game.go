@@ -110,7 +110,9 @@ func (game *Game) Start() {
 		&尸体发火,
 	}
 
-	if game.PlayerNum > 2 {
+	if game.PlayerNum >= 5 {
+		WINSTATE_BOSS_COUNT = 1
+	} else if game.PlayerNum >= 3 {
 		WINSTATE_BOSS_COUNT = 2
 	} else {
 		WINSTATE_BOSS_COUNT = 3
@@ -1174,7 +1176,7 @@ func (game *Game) getMaxBidValue2(playerId int) int {
 	if game.沙漠三小队_playerid != -1 && game.沙漠三小队_playerid != playerId && (game.CurrentBiddingEntity2.Name == "火之眼" || game.CurrentBiddingEntity2.Name == "督瑞尔") {
 		return 0
 	}
-	if game.火之眼_playerid != -1 && game.火之眼_playerid != playerId && game.CurrentBiddingEntity2.Name == "火之眼" {
+	if game.火之眼_playerid != -1 && game.火之眼_playerid != playerId && game.CurrentBiddingEntity2.Name == "召唤者" {
 		return 0
 	}
 	if game.督瑞尔_playerid != -1 && game.督瑞尔_playerid != playerId && game.CurrentBiddingEntity2.Name == "督瑞尔" {
