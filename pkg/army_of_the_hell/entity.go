@@ -821,7 +821,10 @@ func init() {
 			}
 		}
 		if count == 2 {
-			game.PrintFunc("议会成员第一组已解锁。")
+			if !game.议会成员解锁 {
+				game.议会成员解锁 = true
+				game.PrintFunc("议会成员第一组已解锁。")
+			}
 			return true
 		}
 		return false

@@ -61,6 +61,8 @@ type Game struct {
 	沙漠三小队_playerid      int
 	火之眼_playerid        int
 	督瑞尔_playerid        int
+	议会成员解锁              bool
+	本回合未通过野蛮人试炼         []bool
 
 	SingleMode bool
 	DoubleMode bool
@@ -93,6 +95,7 @@ func New(number_players int) *Game {
 	game.西希之王_playerid = -1
 	game.衣卒尔_playerid = -1
 	game.三个野蛮人试炼_passed = make([]bool, number_players)
+	game.本回合未通过野蛮人试炼 = make([]bool, number_players)
 	game.火之眼_playerid = -1
 	game.督瑞尔_playerid = -1
 	game.格瑞斯华尔德_playerid = -1
@@ -276,6 +279,11 @@ func (game *Game) startNewTurn() {
 	game.暴躁外皮_countdown--
 	if game.暴躁外皮_countdown == 0 {
 		game.CurrentEntityPool = append(game.CurrentEntityPool, &暴躁外皮2)
+	}
+
+	// 记录回合开始时各个玩家是否通过了野蛮人试炼
+	for i := 0; i < game.PlayerNum; i++ {
+		game.本回合未通过野蛮人试炼[i] = game.三个野蛮人试炼_passed[i]
 	}
 
 	var poolString string
@@ -676,11 +684,15 @@ func (game *Game) startNewTurn() {
 			game.黑暗长老_天黑_countdown--
 			game.PrintFunc("由于黑暗长老效果，天黑了，本回合拍卖的角色未知。")
 		} else {
-			bidRanges := ""
-			for i := 0; i < game.PlayerNum; i++ {
-				bidRanges += fmt.Sprintf("%s 最高出价：%d (%+d%%)\n", game.CurrentPlayerNickname[i], game.getMaxBidValue2(i), int(game.getCurrentPriceDiscount2(i)*100-100.01))
+			if game.CurrentBiddingEntity2.Name != "" {
+				bidRanges := ""
+				for i := 0; i < game.PlayerNum; i++ {
+					bidRanges += fmt.Sprintf("%s 最高出价：%d (%+d%%)\n", game.CurrentPlayerNickname[i], game.getMaxBidValue2(i), int(game.getCurrentPriceDiscount2(i)*100-100.01))
+				}
+				game.PrintFunc(fmt.Sprintf("本回合拍卖的角色2：%v\n\n%s", game.CurrentBiddingEntity2, bidRanges))
+			} else {
+				game.PrintFunc("本回合仅有一个角色拍卖，你只需输入一个数字，表示对该角色的出价。")
 			}
-			game.PrintFunc(fmt.Sprintf("本回合拍卖的角色：%v\n\n%s", game.CurrentBiddingEntity2, bidRanges))
 		}
 	}
 }
@@ -761,7 +773,9 @@ func (game *Game) endTurn() {
 	}
 	if game.DoubleMode {
 		if winner2 == -1 {
-			bidDescription += "\n\n" + game.CurrentBiddingEntity2.Name + "最高出价相同，本回合流拍。"
+			if game.CurrentBiddingEntity2.Name != "" {
+				bidDescription += "\n\n" + game.CurrentBiddingEntity2.Name + "最高出价相同，本回合流拍。"
+			}
 		} else {
 			bidDescription += fmt.Sprintf("\n\n%s 成功拍得了：%v", game.CurrentPlayerNickname[winner2], game.CurrentBiddingEntity2)
 		}
@@ -1043,7 +1057,7 @@ func (game *Game) endTurn() {
 	if game.SingleMode && slices.Contains(game.CurrentBiddingEntity.Tags, "BOSS") && winner != -1 {
 		game.SingleMode = false
 		game.DoubleMode = true
-		game.PrintFunc("由于有BOSS被拍得，【双拍模式】已开启。")
+		game.PrintFunc("由于有BOSS被拍得，【双拍模式】已开启，请输入两个数字，分别代表对两个怪物的出价，以空格分隔。")
 	}
 
 	game.CurrentBiddingEntity = nil
@@ -1159,7 +1173,7 @@ func (game *Game) getMaxBidValue(playerId int) int {
 		game.CurrentBiddingEntity.Name == "血腥的巴特克" ||
 		game.CurrentBiddingEntity.Name == "不洁的凡塔" ||
 		game.CurrentBiddingEntity.Name == "古难记录者" {
-		if !game.三个野蛮人试炼_passed[playerId] {
+		if !game.本回合未通过野蛮人试炼[playerId] {
 			return 0
 		}
 	}
@@ -1249,7 +1263,8 @@ func (game *Game) checkPricesValid(playerId int, price1 int, price2 int) error {
 		!game.衣卒尔_player_history[1] &&
 		!game.衣卒尔_player_history[2] &&
 		!game.衣卒尔_player_history[3] &&
-		price1 > 0 && price2 > 0 {
+		price1 > 0 &&
+		(price2 > 0 || game.CurrentBiddingEntity2.Name == "") {
 		return fmt.Errorf("由于衣卒尔效果限制，至少得为一个单位出价0点")
 	}
 	if game.CurrentBiddingEntity.BidChecker != nil {
@@ -1266,7 +1281,7 @@ func (game *Game) checkPricesValid(playerId int, price1 int, price2 int) error {
 	discount2 := game.getCurrentPriceDiscount2(playerId)
 	total := int(float64(price1)*discount) + int(float64(price2)*discount2)
 	if total > game.PlayerCredits[playerId] {
-		return fmt.Errorf("你当前的总花费为 %d，超过能力点总数", total)
+		return fmt.Errorf("你当前的总花费为 %d，超过能力点总数 %d", total, game.PlayerCredits[playerId])
 	}
 	return nil
 }

@@ -287,7 +287,7 @@ func Handle() {
 
 			gameLock.Lock()
 			defer gameLock.Unlock()
-			if game.SingleMode {
+			if game.SingleMode || game.CurrentBiddingEntity2.Name == "" {
 				if !game.CurrentPlayerReady[id] {
 					price, err := strconv.Atoi(ctx.Event.RawMessage)
 					if err != nil {
