@@ -795,7 +795,7 @@ func (game *Game) endTurn() {
 	if winner2 != -1 {
 		game.PlayerCredits[winner2] -= int(float64(game.CurrentPlayerBid2[winner2]) * game.getCurrentPriceDiscount2(winner2))
 	}
-	if winner != -1 || game.Turn == 1 { // 尸体发火流拍也正常解锁后续
+	if winner != -1 { // 尸体发火流拍也正常解锁后续
 		if winner != -1 {
 			game.PlayerEntities[winner] = append(game.PlayerEntities[winner], game.CurrentBiddingEntity)
 			game.CurrentEntityPool = append(game.CurrentEntityPool[:game.CurrentBiddingEntityIndex], game.CurrentEntityPool[game.CurrentBiddingEntityIndex+1:]...)
@@ -833,6 +833,11 @@ func (game *Game) endTurn() {
 		}
 	}
 	game.PrintFunc(fmt.Sprintf("第%d回合结束。\n%s", game.Turn, bidDescription))
+
+	// 尸体发火：第一回合无论如何解锁 毕须博须, 罗达门特
+	if game.Turn == 1 {
+		game.CurrentEntityPool = append(game.CurrentEntityPool, &毕须博须, &罗达门特)
+	}
 
 	// 火之眼：如果两回合内抽到【召唤者】，只有拍得火之眼者可以竞拍【召唤者】
 	if game.CurrentBiddingEntity.Name == "火之眼" && winner != -1 {

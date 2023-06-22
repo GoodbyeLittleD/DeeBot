@@ -28,7 +28,7 @@ var (
 		Name:           "尸体发火",
 		Tags:           []string{"all"},
 		EndTurnCredits: 2,
-		UnlockEntities: []*Entity{&毕须博须, &罗达门特},
+		UnlockEntities: []*Entity{},
 		Desc: `
 效果：每回合额外给予所属玩家1能力点。
 特殊：如果流拍也正常解锁后续
