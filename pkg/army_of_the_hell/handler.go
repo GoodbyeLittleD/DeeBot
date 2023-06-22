@@ -182,6 +182,9 @@ func Handle() {
 			if !slices.Contains(currentPlayerIds, ctx.Event.UserID) {
 				return
 			}
+			if gameStarted {
+				return
+			}
 			gameStarted = true
 			game = New(len(currentPlayerIds))
 			game.PrintFunc = func(msg string) {
