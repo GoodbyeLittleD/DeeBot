@@ -114,6 +114,7 @@ func New(number_players int) *Game {
 func (game *Game) Start() {
 	game.CurrentEntityPool = []*Entity{
 		&尸体发火,
+		// &三个野蛮人,
 	}
 
 	if game.PlayerNum >= 5 {
@@ -409,7 +410,12 @@ func (game *Game) startNewTurn() {
 		// 三个野蛮人试炼：当被抽到时，改为开启试炼
 	} else if game.CurrentBiddingEntity.Name == "三个野蛮人" {
 		game.PrintFunc("【三个野蛮人】试炼已开启。玩家可以随时输入【接受试炼】，支付50能力点通过三个野蛮人的试炼。一方通过试炼后解锁【破坏者卡兰索】。")
+		game.三个野蛮人试炼_unlocked = true
 		game.CurrentEntityPool = append(game.CurrentEntityPool[:game.CurrentBiddingEntityIndex], game.CurrentEntityPool[game.CurrentBiddingEntityIndex+1:]...)
+		if game.尼拉塞克_playerid != -1 {
+			game.破坏者卡兰索_unlocked = true
+			game.CurrentEntityPool = append(game.CurrentEntityPool, &破坏者卡兰索)
+		}
 		game.handleEndTurnCredits()
 		game.startNewTurn()
 		return
