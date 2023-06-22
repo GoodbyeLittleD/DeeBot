@@ -698,6 +698,9 @@ func (game *Game) startNewTurn() {
 				game.PrintFunc(fmt.Sprintf("本回合拍卖的角色2：%v\n\n%s", game.CurrentBiddingEntity2, bidRanges))
 			} else {
 				game.PrintFunc("本回合仅有一个角色拍卖，你只需输入一个数字，表示对该角色的出价。")
+				for i := 0; i < game.PlayerNum; i++ {
+					game.CurrentPlayerBid2[i] = 0
+				}
 			}
 		}
 	}
@@ -762,7 +765,7 @@ func (game *Game) endTurn() {
 	}
 
 	bidDescription := ""
-	if game.SingleMode {
+	if game.SingleMode || game.CurrentBiddingEntity2.Name == "" {
 		for i := 0; i < game.PlayerNum; i++ {
 			bidDescription += fmt.Sprintf("\n%s ：%d", game.CurrentPlayerNickname[i], game.CurrentPlayerBid[i])
 		}
