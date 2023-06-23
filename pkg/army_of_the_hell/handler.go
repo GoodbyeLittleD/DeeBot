@@ -130,44 +130,47 @@ func Handle() {
 		}
 		currentWatchingPlayerIds = append(currentWatchingPlayerIds, ctx.Event.UserID)
 	})
+	quit := func(ctx *zero.Ctx, playerId int64) {
+		if slices.Contains(currentWatchingPlayerIds, playerId) {
+			index := slices.Index(currentWatchingPlayerIds, playerId)
+			currentWatchingPlayerIds = append(currentWatchingPlayerIds[:index], currentWatchingPlayerIds[index+1:]...)
+			return
+		}
+		if gameStarted {
+			if slices.Contains(currentPlayerIds, playerId) {
+				index := slices.Index(currentPlayerIds, playerId)
+				if game.PlayerLeave(index) {
+					gameStarted = false
+					currentGroupId = 0
+					return
+				}
+			}
+			return
+		}
+		if slices.Contains(currentPlayerIds, playerId) {
+			index := slices.Index(currentPlayerIds, playerId)
+			currentPlayerIds = append(currentPlayerIds[:index], currentPlayerIds[index+1:]...)
+			currentPlayerNames = append(currentPlayerNames[:index], currentPlayerNames[index+1:]...)
+			if sendGroupWelcome {
+				// groupmsghelper.SendText("已退出地狱大军！")
+				go ctx.SendChain(message.At(playerId), message.Text("已退出地狱大军！"))
+			}
+			if sendPrivateMsg {
+				go ctx.SendPrivateMessage(playerId, message.Message{
+					message.Text("已退出地狱大军！"),
+				})
+			}
+			if len(currentPlayerIds) == 0 {
+				gameStarted = false
+				currentGroupId = 0
+			}
+		}
+	}
 	zero.OnCommand("退出").
 		Handle(func(ctx *zero.Ctx) {
 			gameLock.Lock()
 			defer gameLock.Unlock()
-			if slices.Contains(currentWatchingPlayerIds, ctx.Event.UserID) {
-				index := slices.Index(currentWatchingPlayerIds, ctx.Event.UserID)
-				currentWatchingPlayerIds = append(currentWatchingPlayerIds[:index], currentWatchingPlayerIds[index+1:]...)
-				return
-			}
-			if gameStarted {
-				if slices.Contains(currentPlayerIds, ctx.Event.UserID) {
-					index := slices.Index(currentPlayerIds, ctx.Event.UserID)
-					if game.PlayerLeave(index) {
-						gameStarted = false
-						currentGroupId = 0
-						return
-					}
-				}
-				return
-			}
-			if slices.Contains(currentPlayerIds, ctx.Event.UserID) {
-				index := slices.Index(currentPlayerIds, ctx.Event.UserID)
-				currentPlayerIds = append(currentPlayerIds[:index], currentPlayerIds[index+1:]...)
-				currentPlayerNames = append(currentPlayerNames[:index], currentPlayerNames[index+1:]...)
-				if sendGroupWelcome {
-					// groupmsghelper.SendText("已退出地狱大军！")
-					go ctx.SendChain(message.At(ctx.Event.UserID), message.Text("已退出地狱大军！"))
-				}
-				if sendPrivateMsg {
-					go ctx.SendPrivateMessage(ctx.Event.UserID, message.Message{
-						message.Text("已退出地狱大军！"),
-					})
-				}
-				if len(currentPlayerIds) == 0 {
-					gameStarted = false
-					currentGroupId = 0
-				}
-			}
+			quit(ctx, ctx.Event.UserID)
 		})
 	zero.OnCommand("开始").
 		Handle(func(ctx *zero.Ctx) {
@@ -240,24 +243,42 @@ func Handle() {
 			// 	}),
 			// })
 		})
-	// zero.OnMessage().
-	// 	Handle(func(ctx *zero.Ctx) {
-	// 		if ctx.Event.GroupID != currentGroupId {
-	// 			return
-	// 		}
-	// 		if !gameStarted {
-	// 			return
-	// 		}
-	// 		id := slices.Index(currentPlayerIds, ctx.Event.UserID)
-	// 		if id == -1 {
-	// 			return
-	// 		}
-	// 		fmt.Printf("id: %d group_msg: %v\n", id, ctx.Event.Message)
+	zero.OnMessage().
+		Handle(func(ctx *zero.Ctx) {
+			if ctx.Event.GroupID != currentGroupId {
+				return
+			}
+			if !gameStarted {
+				return
+			}
+			id := slices.Index(currentPlayerIds, ctx.Event.UserID)
+			if id == -1 {
+				return
+			}
+			fmt.Printf("id: %d group_msg: %v\n", id, ctx.Event.Message)
 
-	// 		// handle public message here.
-	// 		gameLock.Lock()
-	// 		defer gameLock.Unlock()
-	// 	})
+			// handle public message here.
+			gameLock.Lock()
+			defer gameLock.Unlock()
+
+			if strings.HasPrefix(ctx.Event.RawMessage, "#帮他退出") {
+				for _, message := range ctx.Event.Message {
+					if message.Type == "at" {
+						qq, ok := message.Data["qq"]
+						if !ok {
+							continue
+						}
+						userId, err := strconv.ParseInt(qq, 10, 64)
+						if err != nil {
+							fmt.Printf("帮他退出失败: 无法解析 %s\n", qq)
+							continue
+						}
+						quit(ctx, userId)
+					}
+				}
+				return
+			}
+		})
 	zero.OnMessage().
 		Handle(func(ctx *zero.Ctx) {
 			if ctx.Event.GroupID != 0 {
@@ -315,6 +336,8 @@ func Handle() {
 			if scores := game.GetScores(); scores != nil {
 				gameStarted = false
 				currentGroupId = 0
+				currentPlayerIds = nil
+				currentWatchingPlayerIds = nil
 			}
 		})
 }
