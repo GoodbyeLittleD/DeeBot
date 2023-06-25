@@ -251,16 +251,6 @@ func Handle() {
 			if !gameStarted {
 				return
 			}
-			id := slices.Index(currentPlayerIds, ctx.Event.UserID)
-			if id == -1 {
-				return
-			}
-			fmt.Printf("id: %d group_msg: %v\n", id, ctx.Event.Message)
-
-			// handle public message here.
-			gameLock.Lock()
-			defer gameLock.Unlock()
-
 			if strings.HasPrefix(ctx.Event.RawMessage, "#帮他退出") {
 				for _, message := range ctx.Event.Message {
 					if message.Type == "at" {
@@ -278,6 +268,22 @@ func Handle() {
 				}
 				return
 			}
+			if strings.HasPrefix(ctx.Event.RawMessage, "#赛况") {
+				status := fmt.Sprintf("游戏进行中，当前第%d回合。\n\n", game.Turn)
+
+				ctx.Send(status)
+				return
+			}
+
+			id := slices.Index(currentPlayerIds, ctx.Event.UserID)
+			if id == -1 {
+				return
+			}
+			fmt.Printf("id: %d group_msg: %v\n", id, ctx.Event.Message)
+
+			// handle public message here.
+			gameLock.Lock()
+			defer gameLock.Unlock()
 		})
 	zero.OnMessage().
 		Handle(func(ctx *zero.Ctx) {
@@ -329,6 +335,8 @@ func Handle() {
 					}
 					if err := game.GivePrices(id, price1, price2); err != nil {
 						ctx.Send(err.Error())
+					} else {
+						ctx.Send("出价成功。")
 					}
 				}
 			}
