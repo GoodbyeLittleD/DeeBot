@@ -33,7 +33,7 @@ func Handle() {
 	var game *Game
 
 	var groupTicket = make(chan struct{})
-	var groupMsgQueue = make(chan string, 1024)
+	var groupMsgQueue = make(chan string, 102400)
 	go func() {
 		for {
 			groupTicket <- struct{}{}
@@ -41,7 +41,7 @@ func Handle() {
 		}
 	}()
 	var privateTicket = make(chan struct{})
-	var privateMsgQueue = make(chan string, 1024)
+	var privateMsgQueue = make(chan string, 102400)
 	go func() {
 		for {
 			privateTicket <- struct{}{}
@@ -196,9 +196,8 @@ func Handle() {
 				if msg == "" {
 					return
 				}
-				groupMsgQueue <- msg
-				privateMsgQueue <- msg
 				if sendGroupMsg {
+					groupMsgQueue <- msg
 					go func() {
 						<-groupTicket
 						ctx.Send(<-groupMsgQueue)
@@ -206,6 +205,7 @@ func Handle() {
 					}()
 				}
 				if sendPrivateMsg {
+					privateMsgQueue <- msg
 					go func() {
 						<-privateTicket
 						msg := <-privateMsgQueue
@@ -300,7 +300,7 @@ func Handle() {
 			fmt.Printf("id: %d private_msg: %v\n", id, ctx.Event.Message)
 
 			// handle private message here.
-			if ctx.Event.RawMessage == "接受试炼" {
+			if ctx.Event.RawMessage == "接受试炼" || ctx.Event.RawMessage == "通过试炼" {
 				if err := game.AcceptTrial(id); err != nil {
 					ctx.Send(err.Error())
 				}
