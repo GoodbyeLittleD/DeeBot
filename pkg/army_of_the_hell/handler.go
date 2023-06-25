@@ -81,6 +81,7 @@ func Handle() {
 			currentGroupId = ctx.Event.GroupID
 			currentPlayerIds = []int64{ctx.Event.UserID}
 			currentPlayerNames = []string{ctx.Event.Sender.Name()}
+			currentWatchingPlayerIds = nil
 		})
 	zero.OnCommand("加入").
 		Handle(func(ctx *zero.Ctx) {
@@ -344,8 +345,6 @@ func Handle() {
 			if scores := game.GetScores(); scores != nil {
 				gameStarted = false
 				currentGroupId = 0
-				currentPlayerIds = nil
-				currentWatchingPlayerIds = nil
 			}
 		})
 }
