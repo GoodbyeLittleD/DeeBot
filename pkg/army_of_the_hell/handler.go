@@ -25,6 +25,7 @@ var sendPrivateMsg = true
 
 func Handle() {
 	var currentGroupId int64
+	var currentGroupName string
 	var currentPlayerIds []int64
 	var currentWatchingPlayerIds []int64
 	var currentPlayerNames []string
@@ -79,6 +80,7 @@ func Handle() {
 				// groupmsghelper.SendText("地狱大军即将出动！\n其他玩家可输入：\n #加入  加入游戏\n #退出  退出游戏")
 			}
 			currentGroupId = ctx.Event.GroupID
+			currentGroupName = ctx.GetGroupInfo(ctx.Event.GroupID, false).Name
 			currentPlayerIds = []int64{ctx.Event.UserID}
 			currentPlayerNames = []string{ctx.Event.Sender.Name()}
 			currentWatchingPlayerIds = nil
@@ -173,6 +175,30 @@ func Handle() {
 			defer gameLock.Unlock()
 			quit(ctx, ctx.Event.UserID)
 		})
+	zero.OnCommand("赛况").
+		Handle(func(ctx *zero.Ctx) {
+			if !gameStarted {
+				ctx.Send("游戏未开始，你可以在群聊中发送 #地狱大军 开启一场新的地狱大军游戏。")
+			} else {
+				gameLock.Lock()
+				defer gameLock.Unlock()
+
+				status := fmt.Sprintf("游戏进行中，当前第%d回合，所在群：%s。\n\n", game.Turn, currentGroupName)
+
+				if game.WaitResponsePlayerId != -1 {
+					status += "正在等待 " + game.CurrentPlayerNickname[game.WaitResponsePlayerId] + " 作出回应。"
+				} else {
+					for i := 0; i < game.PlayerNum; i++ {
+						if game.CurrentPlayerReady[i] {
+							status += game.CurrentPlayerNickname[i] + "：已行动\n"
+						} else {
+							status += game.CurrentPlayerNickname[i] + "：未行动\n"
+						}
+					}
+				}
+				ctx.Send(status)
+			}
+		})
 	zero.OnCommand("开始").
 		Handle(func(ctx *zero.Ctx) {
 			gameLock.Lock()
@@ -246,13 +272,10 @@ func Handle() {
 		})
 	zero.OnMessage().
 		Handle(func(ctx *zero.Ctx) {
-			if ctx.Event.GroupID != currentGroupId {
-				return
-			}
-			if !gameStarted {
-				return
-			}
 			if strings.HasPrefix(ctx.Event.RawMessage, "#帮他退出") {
+				if !gameStarted {
+					return
+				}
 				for _, message := range ctx.Event.Message {
 					if message.Type == "at" {
 						qq, ok := message.Data["qq"]
@@ -269,25 +292,13 @@ func Handle() {
 				}
 				return
 			}
-			if strings.HasPrefix(ctx.Event.RawMessage, "#赛况") {
-				status := fmt.Sprintf("游戏进行中，当前第%d回合，所在群：%d。\n\n", game.Turn, currentGroupId)
 
-				if game.WaitResponsePlayerId != -1 {
-					status += "正在等待 " + game.CurrentPlayerNickname[game.WaitResponsePlayerId] + " 作出回应。"
-				} else {
-					for i := 0; i < game.PlayerNum; i++ {
-						if game.CurrentPlayerReady[i] {
-							status += game.CurrentPlayerNickname[i] + "：已行动"
-						} else {
-							status += game.CurrentPlayerNickname[i] + "：未行动"
-						}
-					}
-				}
-
-				ctx.Send(status)
+			if !gameStarted {
 				return
 			}
-
+			if ctx.Event.GroupID != currentGroupId {
+				return
+			}
 			id := slices.Index(currentPlayerIds, ctx.Event.UserID)
 			if id == -1 {
 				return
@@ -336,6 +347,8 @@ func Handle() {
 					}
 					if err := game.GivePrice(id, price); err != nil {
 						ctx.Send(err.Error())
+					} else if game.CurrentPlayerReady[id] {
+						ctx.Send("出价成功。")
 					}
 				}
 			} else {
@@ -348,7 +361,7 @@ func Handle() {
 					}
 					if err := game.GivePrices(id, price1, price2); err != nil {
 						ctx.Send(err.Error())
-					} else {
+					} else if game.CurrentPlayerReady[id] {
 						ctx.Send("出价成功。")
 					}
 				}

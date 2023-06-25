@@ -248,11 +248,17 @@ func (game *Game) AcceptTrial(playerId int) error {
 	return nil
 }
 
+// return true if game ends
 func (game *Game) PlayerLeave(playerId int) bool {
+	game.PrintFunc(game.CurrentPlayerNickname[playerId] + "离开了游戏")
+
 	game.PlayerLeaved[playerId] = true
 	game.CurrentPlayerReady[playerId] = true
 	game.CurrentPlayerBid[playerId] = 0
-	game.PrintFunc(game.CurrentPlayerNickname[playerId] + "离开了游戏")
+	if game.WaitResponsePlayerId == playerId {
+		game.Response = "否"
+		game.WaitResponsePlayerId = -1
+	}
 
 	all_player_leaved := true
 	for _, leaved := range game.PlayerLeaved {
@@ -266,10 +272,25 @@ func (game *Game) PlayerLeave(playerId int) bool {
 		return true
 	}
 
-	if game.WaitResponsePlayerId == playerId {
-		game.Response = "否"
-		game.WaitResponsePlayerId = -1
+	all_player_ready := true
+	for id, ready := range game.CurrentPlayerReady {
+		if game.PlayerLeaved[id] {
+			continue
+		}
+		if !ready {
+			all_player_ready = false
+		}
 	}
+	if all_player_ready {
+		game.endTurn()
+
+		if win, _ := game.checkWinState(); win {
+			return true
+		}
+
+		game.startNewTurn()
+	}
+
 	return false
 }
 
