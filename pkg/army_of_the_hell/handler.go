@@ -270,7 +270,19 @@ func Handle() {
 				return
 			}
 			if strings.HasPrefix(ctx.Event.RawMessage, "#赛况") {
-				status := fmt.Sprintf("游戏进行中，当前第%d回合。\n\n", game.Turn)
+				status := fmt.Sprintf("游戏进行中，当前第%d回合，所在群：%d。\n\n", game.Turn, currentGroupId)
+
+				if game.WaitResponsePlayerId != -1 {
+					status += "正在等待 " + game.CurrentPlayerNickname[game.WaitResponsePlayerId] + " 作出回应。"
+				} else {
+					for i := 0; i < game.PlayerNum; i++ {
+						if game.CurrentPlayerReady[i] {
+							status += game.CurrentPlayerNickname[i] + "：已行动"
+						} else {
+							status += game.CurrentPlayerNickname[i] + "：未行动"
+						}
+					}
+				}
 
 				ctx.Send(status)
 				return
